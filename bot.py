@@ -35,18 +35,20 @@ while True:
         signal = generate_signal(df)
 
         if signal == "CALL":
-            send_msg("🟢 CRUDEOIL BUY CALL
+            send_msg("""🟢 CRUDEOIL BUY CALL
+
 Entry: 295
 TP1: 300
 TP2: 305
-SL: 292")
+SL: 292""")
 
         elif signal == "PUT":
-            send_msg("🔴 CRUDEOIL BUY PUT
+            send_msg("""🔴 CRUDEOIL BUY PUT
+
 Entry: 295
 TP1: 290
 TP2: 285
-SL: 298")
+SL: 298""")
 
         time.sleep(60)
 
