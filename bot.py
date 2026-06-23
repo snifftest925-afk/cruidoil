@@ -11,41 +11,37 @@ UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 
 def send_msg(text):
     url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": text
-    })
+    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
 
-def get_crude_price():
+def test_upstox_connection():
     headers = {
         "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}",
         "Accept": "application/json"
     }
 
-    # Replace instrument_key with actual MCX Crude Oil instrument key
-    instrument_key = "MCX_FO|YOUR_CRUDEOIL_INSTRUMENT"
+    print("=== TESTING UPSTOX CONNECTION ===")
 
-    url = f"https://api.upstox.com/v2/market-quote/ltp?instrument_key={instrument_key}"
+    r = requests.get(
+        "https://api.upstox.com/v2/user/profile",
+        headers=headers
+    )
+    print("PROFILE RESPONSE:")
+    print(r.text)
 
-    response = requests.get(url, headers=headers)
-    return response.json()
+    r = requests.get(
+        "https://api.upstox.com/v2/option/contract?instrument_key=MCX_FO",
+        headers=headers
+    )
+    print("OPTION CHAIN RESPONSE:")
+    print(r.text)
 
 if __name__ == "__main__":
-    send_msg("🚀 Upstox Crude Oil Bot Started")
+    send_msg("🚀 Upstox Debug Bot Started")
 
     while True:
         try:
-            data = get_crude_price()
-            print(data)
-
-            # TODO:
-            # 1. Fetch option chain
-            # 2. Calculate EMA / RSI
-            # 3. Select ATM strike
-            # 4. Send Telegram signal
-
-            time.sleep(60)
-
+            test_upstox_connection()
+            time.sleep(300)
         except Exception as e:
-            print("Error:", e)
-            time.sleep(10)
+            print("ERROR:", e)
+            time.sleep(30)
