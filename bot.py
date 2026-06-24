@@ -1,113 +1,84 @@
 import os
 import time
 import requests
-import pandas as pd
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 UPSTOX_ACCESS_TOKEN = os.getenv("UPSTOX_ACCESS_TOKEN")
 
-SYMBOL = "CRUDEOIL"
+LAST_SIGNAL = None
 
 def send_msg(text):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
+    try:
+        requests.post(
+            f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage",
+            data={
+                "chat_id": CHAT_ID,
+                "text": text
+            },
+            timeout=10
+        )
+    except Exception as e:
+        print("Telegram Error:", e)
 
-
-# ---------- Indicators ----------
-def ema(series, period):
-    return series.ewm(span=period, adjust=False).mean()
-
-
-def supertrend(df, period=10, multiplier=3):
-    hl2 = (df['high'] + df['low']) / 2
-    atr = df['high'].rolling(period).max() - df['low'].rolling(period).min()
-
-    final_upper = hl2 + (multiplier * atr)
-    final_lower = hl2 - (multiplier * atr)
-
-    trend = []
-    for i in range(len(df)):
-        if i == 0:
-            trend.append("BUY")
-        else:
-            if df['close'][i] > final_upper[i-1]:
-                trend.append("BUY")
-            elif df['close'][i] < final_lower[i-1]:
-                trend.append("SELL")
-            else:
-                trend.append(trend[i-1])
-
-    return trend
-
-
-# ---------- Fetch Data ----------
-def get_candles():
-    url = "https://api.upstox.com/v2/historical-candle/intraday/CRUDEOIL/5minute"
+def get_crude_price():
     headers = {
-        "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}"
+        "Authorization": f"Bearer {UPSTOX_ACCESS_TOKEN}",
+        "Accept": "application/json"
     }
 
-    r = requests.get(url, headers=headers)
-    data = r.json()
+    # IMPORTANT:
+    # Replace with actual CRUDEOIL FUTURE instrument key later
+    instrument_key = "MCX_FO|YOUR_CRUDE_FUT_KEY"
 
-    candles = data['data']['candles']
+    url = f"https://api.upstox.com/v2/market-quote/quotes?instrument_key={instrument_key}"
 
-    df = pd.DataFrame(candles, columns=[
-        "time", "open", "high", "low", "close", "volume"
-    ])
+    try:
+        r = requests.get(url, headers=headers, timeout=30)
+        print(r.text)
 
-    df = df.astype({"open": float, "high": float, "low": float, "close": float})
+        data = r.json()
 
-    return df
+        # Adjust after real response received
+        return data
 
+    except Exception as e:
+        print("Price Error:", e)
+        return None
 
-# ---------- Signal Logic ----------
-last_signal = None
+def generate_signal(price):
+    global LAST_SIGNAL
 
-def check_signal():
-    global last_signal
+    if not price:
+        return
 
-    df = get_candles()
+    # Dummy logic for testing
+    if LAST_SIGNAL != "BUY":
+        LAST_SIGNAL = "BUY"
 
-    df["ema200"] = ema(df["close"], 200)
-    df["st"] = supertrend(df)
+        send_msg(
+            "🟢 CRUDEOIL BUY\n\n"
+            f"Price: {price}\n"
+            "Target: +30\n"
+            "SL: -20"
+        )
 
-    latest = df.iloc[-1]
-
-    signal = None
-
-    if latest["st"] == "BUY" and latest["close"] > latest["ema200"]:
-        signal = "BUY"
-
-    elif latest["st"] == "SELL" and latest["close"] < latest["ema200"]:
-        signal = "SELL"
-
-    if signal and signal != last_signal:
-        last_signal = signal
-
-        msg = f"""
-🚨 CRUDEOIL SIGNAL (5M)
-
-Type: {signal}
-Price: {latest['close']}
-
-Strategy: Supertrend + EMA200
-
-Time: {latest['time']}
-"""
-        send_msg(msg)
-
-
-# ---------- Main Loop ----------
-if __name__ == "__main__":
-    send_msg("🚀 CRUDEOIL Bot Started (5M Strategy)")
+def main():
+    send_msg("🚀 Crude Oil Signal Bot Started")
 
     while True:
         try:
-            check_signal()
-            time.sleep(300)  # 5 min
+            price = get_crude_price()
+
+            print("PRICE:", price)
+
+            generate_signal(price)
+
+            time.sleep(300)
 
         except Exception as e:
-            print("ERROR:", e)
+            print("Main Error:", e)
             time.sleep(30)
+
+if __name__ == "__main__":
+    main()
